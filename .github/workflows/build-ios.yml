@@ -1,33 +1,17 @@
-name: Build iOS Dual IPAs
+name: Build Unsigned iOS IPA
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build IPA for ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # A端 iOS12
-          - target: "iOS12"
-            os: macos-13
-            xcode_version: "15.2"
-            deployment_target: "12.0"
-          # B端
-          - target: "iOS18"
-            os: macos-15
-            xcode_version: "16.4"
-            deployment_target: "15.0"
-
+    runs-on: macos-15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select Xcode ${{ matrix.xcode_version }}
-        run: sudo xcode-select -s /Applications/Xcode_${{ matrix.xcode_version }}.app
+      - name: Select Xcode 16.4
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -38,39 +22,10 @@ jobs:
       - name: Get Dependencies
         run: flutter pub get
 
-      - name: Configure CocoaPods mirror (iOS12 only)
-        if: matrix.target == 'iOS12'
-        run: |
-          gem sources --remove https://rubygems.org/ || true
-          gem sources -a https://gems.ruby-china.com
-          pod repo remove trunk || true
-          pod repo add trunk https://mirrors.tuna.tsinghua.edu.cn/git/cocoapods/specs.git
-          pod repo update
-
-      - name: Pod cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ios/Pods
-            ios/Podfile.lock
-          key: ${{ matrix.target }}-pod-${{ hashFiles('ios/Podfile','pubspec.yaml') }}
-
-      - name: Force Deployment Target
-        run: |
-          # 只修改Runner工程，不修改插件pod
-          sed -i '' '/Runner/,/End/{s/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = ${{ matrix.deployment_target }}/g}' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/platform :ios, .*/platform :ios, '\''${{ matrix.deployment_target }}'\''/g' ios/Podfile || true
-
-      - name: Clean old pod
-        run: |
-          cd ios
-          pod deintegrate || true
-          rm -rf Pods Podfile.lock
-
       - name: Install Pods
         run: |
           cd ios
-          pod install --verbose
+          pod install
 
       - name: Build with xcodebuild
         run: |
@@ -80,12 +35,11 @@ jobs:
       - name: Package into IPA
         run: |
           APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Runner.app" -path "*Release-iphoneos*" | head -n 1)
-          mkdir -p Payload
+          mkdir Payload
           cp -r "$APP_PATH" Payload/
-          ditto -c -k --sequesterRsrc --keepParent Payload unsigned_app_${{ matrix.target }}.ipa
+          ditto -c -k --sequesterRsrc --keepParent Payload unsigned_app.ipa
 
-      - name: Upload IPA Artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: Unsigned-IPA-${{ matrix.target }}
-          path: unsigned_app_${{ matrix.target }}.ipa
+          name: Unsigned-iOS-IPA
+          path: unsigned_app.ipa
