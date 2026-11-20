@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'globals.dart';
 import 'dialer_screen.dart';
-import 'settings_screen.dart';
-import 'call_screen.dart';
+import 'a_call_screen.dart';
+import 'b_call_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Globals.loadRole();
   runApp(const MyApp());
 }
 
@@ -14,44 +15,26 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '电话',
-      theme: ThemeData.light().copyWith(
-        scaffoldBackgroundColor: Colors.white,
-        appBarTheme: const AppBarTheme(backgroundColor: Colors.white, foregroundColor: Colors.black),
-      ),
-      darkTheme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: Colors.black,
-        appBarTheme: const AppBarTheme(backgroundColor: Colors.black, foregroundColor: Colors.white),
-      ),
+      title: '语音控制',
+      theme: ThemeData.light().copyWith(scaffoldBackgroundColor: Colors.white),
+      darkTheme: ThemeData.dark().copyWith(scaffoldBackgroundColor: Colors.black),
       themeMode: ThemeMode.system,
-      home: const RoleDispatcherScreen(),
+      home: const RoleDispatcher(),
     );
   }
 }
 
-class RoleDispatcherScreen extends StatefulWidget {
-  const RoleDispatcherScreen({super.key});
-  @override
-  State<RoleDispatcherScreen> createState() => _RoleDispatcherScreenState();
-}
-
-class _RoleDispatcherScreenState extends State<RoleDispatcherScreen> {
-  @override
-  void initState() {
-    super.initState();
-    _checkRole();
-  }
-
-  Future<void> _checkRole() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String role = prefs.getString('device_role') ?? '';
-    if (!mounted) return;
-    // 无论选没选角色，默认先进拨号盘（没选的话隐藏设置里可以选）
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const DialerScreen()));
-  }
+class RoleDispatcher extends StatelessWidget {
+  const RoleDispatcher({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (Globals.currentRole == 'A') {
+      return const ACallScreen();
+    } else if (Globals.currentRole == 'B') {
+      return const BCallScreen();
+    } else {
+      return const DialerScreen();
+    }
   }
 }

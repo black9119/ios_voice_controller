@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'settings_screen.dart';
+import 'globals.dart';
+import 'a_call_screen.dart';
+import 'b_call_screen.dart';
 
 class DialerScreen extends StatefulWidget {
   const DialerScreen({super.key});
@@ -9,23 +11,43 @@ class DialerScreen extends StatefulWidget {
 
 class _DialerScreenState extends State<DialerScreen> {
   String _input = '';
-  final Map<String, String> _letters = {
-    '2': 'ABC', '3': 'DEF', '4': 'GHI', '5': 'JKL', '6': 'MNO',
-    '7': 'PQRS', '8': 'TUV', '9': 'WXYZ', '0': '+'
-  };
 
   void _onPress(String num) {
     setState(() { _input += num; });
     if (_input == '999999999') {
       _input = '';
-      Navigator.push(context, MaterialPageRoute(builder: (c) => const SettingsScreen()));
+      _showSettings();
     }
   }
 
-  void _onDelete() {
-    if (_input.isNotEmpty) {
-      setState(() { _input = _input.substring(0, _input.length - 1); });
-    }
+  void _showSettings() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('隐藏设置'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('设为 A 端（被控端）'),
+              onTap: () async {
+                await Globals.saveRole('A');
+                if (!context.mounted) return;
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const ACallScreen()));
+              },
+            ),
+            ListTile(
+              title: const Text('设为 B 端（控制端）'),
+              onTap: () async {
+                await Globals.saveRole('B');
+                if (!context.mounted) return;
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const BCallScreen()));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -54,10 +76,10 @@ class _DialerScreenState extends State<DialerScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildRow(['1', '2', '3'], keyBg, text),
-                    _buildRow(['4', '5', '6'], keyBg, text),
-                    _buildRow(['7', '8', '9'], keyBg, text),
-                    _buildRow(['*', '0', '#'], keyBg, text),
+                    _row(['1','2','3'], keyBg, text),
+                    _row(['4','5','6'], keyBg, text),
+                    _row(['7','8','9'], keyBg, text),
+                    _row(['*','0','#'], keyBg, text),
                   ],
                 ),
               ),
@@ -66,13 +88,12 @@ class _DialerScreenState extends State<DialerScreen> {
               height: 100,
               padding: const EdgeInsets.symmetric(horizontal: 60),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(width: 60),
                   GestureDetector(
                     onTap: () {
                       if (_input.isNotEmpty) {
-                        // 预留呼叫逻辑
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('呼叫逻辑待接入')));
                       }
                     },
                     child: Container(
@@ -81,46 +102,26 @@ class _DialerScreenState extends State<DialerScreen> {
                       child: const Icon(Icons.call, color: Colors.white, size: 32),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: _onDelete,
-                    child: Container(
-                      width: 60, alignment: Alignment.center,
-                      child: _input.isNotEmpty ? Icon(Icons.backspace_outlined, color: text, size: 28) : const SizedBox(),
-                    ),
-                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 10),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildRow(List<String> keys, Color bg, Color text) {
+  Widget _row(List<String> keys, Color bg, Color text) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: keys.map((key) => _buildKey(key, bg, text)).toList(),
-    );
-  }
-
-  Widget _buildKey(String key, Color bg, Color text) {
-    String letter = _letters[key] ?? '';
-    return GestureDetector(
-      onTap: () => _onPress(key),
-      child: Container(
-        width: 75, height: 75,
-        decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(key, style: TextStyle(fontSize: 32, color: text, fontWeight: FontWeight.w400)),
-            if (letter.isNotEmpty)
-              Text(letter, style: TextStyle(fontSize: 10, color: text, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-          ],
+      children: keys.map((k) => GestureDetector(
+        onTap: () => _onPress(k),
+        child: Container(
+          width: 75, height: 75,
+          decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+          child: Center(child: Text(k, style: TextStyle(fontSize: 32, color: text))),
         ),
-      ),
+      )).toList(),
     );
   }
 }

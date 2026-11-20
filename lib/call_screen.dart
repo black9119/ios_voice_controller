@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:zego_express_engine/zego_express_engine.dart';
 import 'zego_service.dart';
 import 'audio_manager.dart';
 
@@ -17,6 +18,13 @@ class _CallScreenState extends State<CallScreen> {
   String _role = 'A';
   String _status = '正在初始化...';
 
+  final List<VoiceItem> voiceList = [
+    VoiceItem("正常", ZegoVoiceChangerPreset.None),
+    VoiceItem("机器人", ZegoVoiceChangerPreset.Android),
+    VoiceItem("萝莉", ZegoVoiceChangerPreset.MenToChild),
+    VoiceItem("大叔", ZegoVoiceChangerPreset.WomenToMen),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -27,8 +35,7 @@ class _CallScreenState extends State<CallScreen> {
     final prefs = await SharedPreferences.getInstance();
     _role = prefs.getString('device_role') ?? 'A';
 
-    _zegoService.initZego();
-    // 统一使用Zego IM接收指令，移除WebSocket服务
+    await _zegoService.initZego();
     _zegoService.onCommandReceived = (cmd) {
       if (cmd == 'busy') _audioManager.playSound('busy');
       if (cmd == 'empty') _audioManager.playSound('empty');
@@ -40,7 +47,6 @@ class _CallScreenState extends State<CallScreen> {
     });
   }
 
-  // B端发送指令，调用Zego广播指令，删掉WebSocket
   Future<void> _sendCommandToA(String cmd) async {
     try {
       await _zegoService.sendControlCommand(cmd);
@@ -90,12 +96,9 @@ class _CallScreenState extends State<CallScreen> {
                     const SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _voiceBtn('正常', 0),
-                        _voiceBtn('机器人', 1),
-                        _voiceBtn('萝莉', 2),
-                        _voiceBtn('大叔', 3),
-                      ],
+                      children: voiceList.map((item) {
+                        return _voiceBtn(item.text, item.preset);
+                      }).toList(),
                     )
                   ] else ...[
                     ElevatedButton(
@@ -125,10 +128,16 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  Widget _voiceBtn(String text, int preset) {
+  Widget _voiceBtn(String text, ZegoVoiceChangerPreset preset) {
     return ElevatedButton(
       onPressed: () => _zegoService.setVoicePreset(preset),
       child: Text(text),
     );
   }
+}
+
+class VoiceItem {
+  final String text;
+  final ZegoVoiceChangerPreset preset;
+  VoiceItem(this.text, this.preset);
 }
