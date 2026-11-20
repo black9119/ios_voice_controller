@@ -31,7 +31,5 @@ target 'Runner' do
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
-  # 适配iOS12 强制约束版本，避免pod无限遍历版本
-  pod 'zego_express_engine', '= 3.14.0'
   pod 'audioplayers_darwin', '= 5.2.1'
 end

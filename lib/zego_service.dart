@@ -50,7 +50,6 @@ class ZegoService {
     await sendCommand(command);
   }
 
-  // 接收枚举，不再接收int
   void setVoicePreset(ZegoVoiceChangerPreset preset) {
     ZegoExpressEngine.instance.setVoiceChangerPreset(preset);
   }
