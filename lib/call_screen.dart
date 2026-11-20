@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'zego_service.dart';
@@ -14,11 +13,9 @@ class CallScreen extends StatefulWidget {
 class _CallScreenState extends State<CallScreen> {
   final ZegoService _zegoService = ZegoService();
   final AudioManager _audioManager = AudioManager();
-  
+
   String _role = 'A';
   String _status = '正在初始化...';
-  String _targetIp = '127.0.0.1';
-  HttpServer? _server;
 
   @override
   void initState() {
@@ -29,60 +26,36 @@ class _CallScreenState extends State<CallScreen> {
   Future<void> _loadRoleAndStart() async {
     final prefs = await SharedPreferences.getInstance();
     _role = prefs.getString('device_role') ?? 'A';
-    _targetIp = prefs.getString('target_ip') ?? '127.0.0.1';
-    
-    if (_role == 'A') {
-      await _startWebSocketServer();
-      _zegoService.initZego();
-      _zegoService.onCommandReceived = (cmd) {
-        if (cmd == 'busy') _audioManager.playSound('busy');
-        if (cmd == 'empty') _audioManager.playSound('empty');
-        if (cmd == 'stop') _audioManager.stop();
-      };
-    } else {
-      _zegoService.initZego();
-    }
-    setState(() { _status = _role == 'A' ? '等待 B 端连接...' : '已连接到 A 端'; });
+
+    _zegoService.initZego();
+    // 统一使用Zego IM接收指令，移除WebSocket服务
+    _zegoService.onCommandReceived = (cmd) {
+      if (cmd == 'busy') _audioManager.playSound('busy');
+      if (cmd == 'empty') _audioManager.playSound('empty');
+      if (cmd == 'stop') _audioManager.stop();
+    };
+
+    setState(() {
+      _status = _role == 'A' ? 'A端，等待通话指令' : 'B端，控制端已就绪';
+    });
   }
 
-  // A 端启动 WebSocket 接收 B 端指令
-  Future<void> _startWebSocketServer() async {
-    try {
-      _server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
-      _server!.listen((HttpRequest request) async {
-        if (WebSocketTransformer.isUpgradeRequest(request)) {
-          final socket = await WebSocketTransformer.upgrade(request);
-          setState(() { _status = 'B 端已连接'; });
-          socket.listen((msg) {
-            final cmd = msg.toString();
-            if (cmd == 'busy') _audioManager.playSound('busy');
-            if (cmd == 'empty') _audioManager.playSound('empty');
-            if (cmd == 'stop') _audioManager.stop();
-          }, onDone: () => setState(() { _status = 'B 端断开'; }));
-        }
-      });
-    } catch (e) {
-      setState(() { _status = '服务器启动失败'; });
-    }
-  }
-
-  // B 端发送指令到 A 端
+  // B端发送指令，调用Zego广播指令，删掉WebSocket
   Future<void> _sendCommandToA(String cmd) async {
     try {
-      final uri = Uri.parse('ws://$_targetIp:8080');
-      final channel = WebSocketChannel.connect(uri);
-      await channel.ready;
-      channel.sink.add(cmd);
-      await channel.sink.close();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('指令已下发: $cmd')));
+      await _zegoService.sendControlCommand(cmd);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('指令已下发: $cmd')));
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('发送失败，请检查 IP')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('发送失败')));
+      }
     }
   }
 
   @override
   void dispose() {
-    _server?.close();
     _audioManager.stop();
     super.dispose();
   }

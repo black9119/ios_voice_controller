@@ -7,12 +7,12 @@ class ZegoService {
   factory ZegoService() => _instance;
   ZegoService._internal();
 
-  // ⚠️ 替换为你的 ZEGO AppID 和 AppSign
-  static const int appID = 491443522; // 填你的 AppID
-  static const String appSign = "f141828e865741eb46cccf86fb4667b5d808e4e02be0f214dcdcfbe622db4204"; // 填你的 AppSign
+  static const int appID = 491443522;
+  static const String appSign = "f141828e865741eb46cccf86fb4667b5d808e4e02be0f214dcdcfbe622db4204";
 
   bool isInitialized = false;
   bool isLoggedIn = false;
+  final String _fixedRoomId = "room_001";
 
   Function(String)? onCommandReceived;
 
@@ -24,7 +24,14 @@ class ZegoService {
       appSign: appSign,
     );
     await ZegoExpressEngine.createEngineWithProfile(profile);
-    ZegoExpressEngine.onRoomStreamUpdate = (roomID, updateType, streamList) {};
+
+    ZegoExpressEngine.onIMRecvCustomCommand = (String roomID, ZegoUser fromUser, String command) {
+      debugPrint("收到指令：$command");
+      onCommandReceived?.call(command);
+    };
+
+    ZegoExpressEngine.onRoomStreamUpdate = (roomID, updateType, streamList, ext) {};
+
     isInitialized = true;
     debugPrint("ZEGO SDK 初始化完成");
   }
@@ -33,12 +40,13 @@ class ZegoService {
     await initZego();
     ZegoUser user = ZegoUser.id(userID);
     ZegoRoomConfig config = ZegoRoomConfig.defaultConfig();
-    ZegoExpressEngine.instance.loginRoom(roomID, user, config: config).then((result) {
+    final result = await ZegoExpressEngine.instance.loginRoom(roomID, user, config: config);
+    if (result.errorCode == 0) {
       isLoggedIn = true;
       debugPrint("登录房间成功: $roomID");
-    }).catchError((e) {
-      debugPrint("登录房间失败: $e");
-    });
+    } else {
+      debugPrint("登录房间失败 code: ${result.errorCode}");
+    }
   }
 
   void startPublish() {
@@ -49,14 +57,33 @@ class ZegoService {
     ZegoExpressEngine.instance.startPlayingStream(streamID);
   }
 
-  // 语音变声设置 (0: 正常, 1: 机器人, 2: 萝莉, 3: 大叔)
   void setVoicePreset(int preset) {
-    // 原生变声 API，直接调用
-    ZegoExpressEngine.instance.setVoicePreset(preset);
+    ZegoVoiceChangerPreset targetPreset;
+    switch (preset) {
+      case 0:
+        targetPreset = ZegoVoiceChangerPreset.None;
+        break;
+      case 1:
+        targetPreset = ZegoVoiceChangerPreset.Android;
+        break;
+      case 2:
+        targetPreset = ZegoVoiceChangerPreset.MenToChild;
+        break;
+      case 3:
+        targetPreset = ZegoVoiceChangerPreset.WomenToMen;
+        break;
+      default:
+        targetPreset = ZegoVoiceChangerPreset.None;
+    }
+    ZegoExpressEngine.instance.setVoiceChangerPreset(targetPreset);
   }
 
-  // 发送自定义指令 (B端下发)
-  void sendCustomCommand(String command) {
-    ZegoExpressEngine.instance.sendCustomCommand("room_id", command, "user_id");
+  Future<void> sendControlCommand(String command) async {
+    final res = await ZegoExpressEngine.instance.sendCustomCommand(
+      _fixedRoomId,
+      command,
+      [],
+    );
+    debugPrint("发送指令结果：${res.errorCode}");
   }
 }
