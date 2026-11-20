@@ -1,92 +1,25 @@
-name: Build iOS Dual IPAs
+name: ios_voice_controller
+description: "iOS Voice Controller with ZEGO"
+publish_to: 'none'
+version: 1.0.0+1
 
-on:
-  workflow_dispatch:
+environment:
+  sdk: '>=3.3.0 <4.0.0'
 
-jobs:
-  build:
-    name: Build IPA for ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # A端 iOS12
-          - target: "iOS12"
-            os: macos-13
-            xcode_version: "15.2"
-            deployment_target: "12.0"
-          # B端
-          - target: "iOS18"
-            os: macos-15
-            xcode_version: "16.4"
-            deployment_target: "15.0"
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.2.3
+  zego_express_engine: ^3.22.0
+  audioplayers: ^5.2.1
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.2
 
-      - name: Select Xcode ${{ matrix.xcode_version }}
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: ${{ matrix.xcode_version }}
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.19.6'
-          channel: 'stable'
-
-      - name: Get Dependencies
-        run: flutter pub get
-
-      - name: Configure CocoaPods mirror (iOS12 only)
-        if: matrix.target == 'iOS12'
-        run: |
-          gem sources --remove https://rubygems.org/ || true
-          gem sources -a https://gems.ruby-china.com
-          pod repo remove trunk || true
-          pod repo add trunk https://mirrors.tuna.tsinghua.edu.cn/git/cocoapods/specs.git
-          pod repo update
-
-      - name: Pod cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ios/Pods
-            ios/Podfile.lock
-          key: ${{ matrix.target }}-pod-${{ hashFiles('ios/Podfile','pubspec.yaml') }}
-
-      - name: Force Deployment Target
-        run: |
-          plutil -replace IPHONEOS_DEPLOYMENT_TARGET -string ${{ matrix.deployment_target }} ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/platform :ios, .*/platform :ios, '\''${{ matrix.deployment_target }}'\''/g' ios/Podfile || true
-
-      - name: Clean old pod
-        run: |
-          cd ios
-          pod deintegrate || true
-          rm -rf Pods Podfile.lock
-
-      - name: Install Pods
-        run: |
-          cd ios
-          pod install --verbose
-
-      - name: Build with xcodebuild
-        run: |
-          cd ios
-          xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -sdk iphoneos -destination generic/platform=iOS CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
-
-      - name: Package into IPA
-        run: |
-          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Runner.app" -path "*Release-iphoneos*" | head -n 1)
-          mkdir -p Payload
-          cp -r "$APP_PATH" Payload/
-          ditto -c -k --sequesterRsrc --keepParent Payload unsigned_app_${{ matrix.target }}.ipa
-
-      - name: Upload IPA Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Unsigned-IPA-${{ matrix.target }}
-          path: unsigned_app_${{ matrix.target }}.ipa
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/audio/
