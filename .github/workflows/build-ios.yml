@@ -11,12 +11,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # --- 针对 iOS 12 的老版本环境 (A端专用) ---
+          # A端 iOS12
           - target: "iOS12"
             os: macos-13
             xcode_version: "15.2"
             deployment_target: "12.0"
-          # --- 针对 iOS 18 的新版本环境 (B端专用) ---
+          # B端
           - target: "iOS18"
             os: macos-15
             xcode_version: "16.4"
@@ -26,50 +26,64 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. 切换对应的 Xcode 版本
       - name: Select Xcode ${{ matrix.xcode_version }}
         run: sudo xcode-select -s /Applications/Xcode_${{ matrix.xcode_version }}.app
 
-      # 2. 配置 Flutter 环境
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.19.6'
           channel: 'stable'
 
-      # 3. 拉取依赖
       - name: Get Dependencies
         run: flutter pub get
 
-      # 4. 强制修改最低系统版本以适配目标设备
+      - name: Configure CocoaPods mirror (iOS12 only)
+        if: matrix.target == 'iOS12'
+        run: |
+          gem sources --remove https://rubygems.org/ || true
+          gem sources -a https://gems.ruby-china.com
+          pod repo remove trunk || true
+          pod repo add trunk https://mirrors.tuna.tsinghua.edu.cn/git/cocoapods/specs.git
+          pod repo update
+
+      - name: Pod cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ios/Pods
+            ios/Podfile.lock
+          key: ${{ matrix.target }}-pod-${{ hashFiles('ios/Podfile','pubspec.yaml') }}
+
       - name: Force Deployment Target
         run: |
-          # 修改主工程的配置
-          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = ${{ matrix.deployment_target }}/g' ios/Runner.xcodeproj/project.pbxproj
-          # 修改 Podfile 的配置
+          # 只修改Runner工程，不修改插件pod
+          sed -i '' '/Runner/,/End/{s/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = ${{ matrix.deployment_target }}/g}' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/platform :ios, .*/platform :ios, '\''${{ matrix.deployment_target }}'\''/g' ios/Podfile || true
 
-      # 5. 安装 CocoaPods 依赖 (强制使用老架构)
+      - name: Clean old pod
+        run: |
+          cd ios
+          pod deintegrate || true
+          rm -rf Pods Podfile.lock
+
       - name: Install Pods
         run: |
           cd ios
-          pod install
+          pod install --verbose
 
-      # 6. 强行编译 (绕过所有签名验证)
       - name: Build with xcodebuild
         run: |
           cd ios
           xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -sdk iphoneos -destination generic/platform=iOS CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
 
-      # 7. 打包为 IPA
       - name: Package into IPA
         run: |
           APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Runner.app" -path "*Release-iphoneos*" | head -n 1)
-          mkdir Payload
+          mkdir -p Payload
           cp -r "$APP_PATH" Payload/
           ditto -c -k --sequesterRsrc --keepParent Payload unsigned_app_${{ matrix.target }}.ipa
 
-      # 8. 上传产物供下载
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
