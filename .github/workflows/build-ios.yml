@@ -1,6 +1,7 @@
 name: Build iOS Unsigned IPA
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main ]
 jobs:
   build:
     runs-on: macos-latest
