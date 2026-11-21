@@ -1,4 +1,4 @@
-name: Build iOS xcarchive
+name: Build Unsigned IPA Auto
 on:
   push:
     branches: [ main ]
@@ -18,6 +18,9 @@ jobs:
       - name: Flutter clean
         run: flutter clean
 
+      - name: Delete pubspec.lock
+        run: rm -f pubspec.lock
+
       - name: Flutter pub get
         run: flutter pub get
 
@@ -27,7 +30,7 @@ jobs:
           rm -rf Pods Podfile.lock
           pod install --repo-update
 
-      - name: Xcode archive (no sign, only build xcarchive)
+      - name: Xcode archive (no sign)
         run: |
           cd ios
           xcodebuild archive \
@@ -39,8 +42,25 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Upload xcarchive artifact
+      - name: Build unsigned IPA
+        run: |
+          cd ios
+          rm -rf Payload
+          mkdir -p Payload
+          APP_PATH="build/Runner.xcarchive/Products/Applications/Runner.app"
+          if [ -d "$APP_PATH" ];then
+            echo "✅ 找到Runner.app，开始打包IPA"
+            cp -R "$APP_PATH" Payload/
+            zip -q -r Runner.ipa Payload
+            mv Runner.ipa build/
+            ls -la build/
+          else
+            echo "❌ 找不到Runner.app，archive失败"
+            exit 1
+          fi
+
+      - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Runner-xcarchive
-          path: ios/build/Runner.xcarchive
+          name: Runner-unsigned-ipa
+          path: ios/build/Runner.ipa
