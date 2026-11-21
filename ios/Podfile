@@ -35,9 +35,10 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
-    # 强制所有pod部署版本为iOS12
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+      # 兼容iOS12，关闭Swift 5.9+新特性
+      config.build_settings['SWIFT_VERSION'] = '5.0'
     end
   end
 end
