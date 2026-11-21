@@ -10,10 +10,11 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  shared_preferences: ^2.2.3
-  # 新版zego，移除ios9硬编码，支持iOS12+
-  zego_express_engine: ^3.14.0
-  audioplayers: ^5.2.1
+  shared_preferences: ^2.2.2
+  # 锁定支持iOS12的Zego版本
+  zego_express_engine: ^3.12.0
+  # 锁定最后支持iOS12的audioplayers版本，5.x起要求更高iOS版本
+  audioplayers: ^4.0.1
 
 dev_dependencies:
   flutter_test:
