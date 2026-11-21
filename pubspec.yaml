@@ -1,17 +1,18 @@
 name: ios_voice_controller
-description: "iOS Voice Controller with ZEGO"
+description: "iOS Voice Controller Zego Call"
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
+  sdk: '^3.3.0'
 
 dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.2.3
-  zego_express_engine: ^3.22.0
+  # 新版zego，移除ios9硬编码，支持iOS12+
+  zego_express_engine: ^3.14.0
   audioplayers: ^5.2.1
 
 dev_dependencies:
