@@ -1,4 +1,4 @@
-name: Build iOS Unsigned IPA
+name: Build iOS xcarchive
 on:
   push:
     branches: [ main ]
@@ -27,7 +27,7 @@ jobs:
           rm -rf Pods Podfile.lock
           pod install --repo-update
 
-      - name: Xcode archive (no sign)
+      - name: Xcode archive (no sign, only build xcarchive)
         run: |
           cd ios
           xcodebuild archive \
@@ -39,16 +39,8 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Export unsigned ipa
-        run: |
-          cd ios
-          xcodebuild -exportArchive \
-            -archivePath build/Runner.xcarchive \
-            -exportPath build/Output \
-            -exportOptionsPlist build/ExportOptions.plist
-
-      - name: Upload IPA artifact
+      - name: Upload xcarchive artifact
         uses: actions/upload-artifact@v4
         with:
-          name: unsigned-ipa
-          path: ios/build/Output/*.ipa
+          name: Runner-xcarchive
+          path: ios/build/Runner.xcarchive
