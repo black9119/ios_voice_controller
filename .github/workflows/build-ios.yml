@@ -1,20 +1,10 @@
-name: Build iOS Dual IPAs
+name: Build iOS IPA
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build IPA for ${{ matrix.target }}
     runs-on: macos-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # A端 最低iOS12
-          - target: "A-iOS12"
-          # B端
-          - target: "B-iOS15"
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -28,26 +18,51 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Pod cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ios/Pods
-            ios/Podfile.lock
-          key: ${{ matrix.target }}-pod-${{ hashFiles('ios/Podfile','pubspec.yaml') }}
-
-      - name: Clean old pods
+      - name: Pod install
         run: |
           cd ios
           pod deintegrate || true
           rm -rf Pods Podfile.lock
+          pod install
 
-      - name: Build unsigned IPA
+      - name: Xcode Archive（不签名）
         run: |
-          flutter build ipa --release --no-codesign
+          cd ios
+          xcodebuild archive \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/Runner.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Export unsigned IPA
+        run: |
+          cd ios
+          xcodebuild -exportArchive \
+            -archivePath build/Runner.xcarchive \
+            -exportPath build/Output \
+            -exportOptionsPlist <(cat <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>development</string>
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>signingCertificate</key>
+	<string></string>
+	<key>provisioningProfiles</key>
+	<dict/>
+</dict>
+</plist>
+EOF
+)
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Unsigned-IPA-${{ matrix.target }}
-          path: build/ios/ipa/*.ipa
+          name: Unsigned-IPA
+          path: ios/build/Output/*.ipa
