@@ -1,9 +1,7 @@
-# ios/Podfile
 platform :ios, '12.0'
 
 use_frameworks!
 
-# Flutter默认配置
 install! 'cocoapods',
   :disable_input_output_paths => true
 
@@ -11,9 +9,9 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  # Flutter 3.19 正确写法
+  flutter_install_ios_pods File.dirname(File.realpath(__FILE__))
 
-  # 强制锁定兼容iOS12的旧版本
   pod 'audioplayers_darwin', '0.1.1'
   pod 'shared_preferences_foundation', '0.1.5'
   pod 'path_provider_foundation', '0.1.5'
