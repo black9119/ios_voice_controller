@@ -36,13 +36,10 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Export unsigned ipa
+      - name: Generate ExportOptions.plist
         run: |
           cd ios
-          xcodebuild -exportArchive \
-            -archivePath build/Runner.xcarchive \
-            -exportPath build/Output \
-            -exportOptionsPlist <(cat <<'EOF'
+          cat > build/ExportOptions.plist <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -53,8 +50,15 @@ jobs:
 	<string>manual</string>
 </dict>
 </plist>
-EOF
-)
+PLIST
+
+      - name: Export unsigned ipa
+        run: |
+          cd ios
+          xcodebuild -exportArchive \
+            -archivePath build/Runner.xcarchive \
+            -exportPath build/Output \
+            -exportOptionsPlist build/ExportOptions.plist
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
