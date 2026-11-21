@@ -1,31 +1,29 @@
-name: Build iOS IPA
+name: Build iOS Unsigned IPA
 on:
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: macos-latest
     steps:
-      - name: Checkout code
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Setup Flutter 3.19.6
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.19.6'
-          channel: 'stable'
+          channel: stable
 
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Pod install
+      - name: Pod clean & install
         run: |
           cd ios
-          pod deintegrate || true
           rm -rf Pods Podfile.lock
           pod install
 
-      - name: Xcode Archive（不签名）
+      - name: Xcode archive (no sign)
         run: |
           cd ios
           xcodebuild archive \
@@ -37,7 +35,7 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Export unsigned IPA
+      - name: Export unsigned ipa
         run: |
           cd ios
           xcodebuild -exportArchive \
@@ -52,10 +50,6 @@ jobs:
 	<string>development</string>
 	<key>signingStyle</key>
 	<string>manual</string>
-	<key>signingCertificate</key>
-	<string></string>
-	<key>provisioningProfiles</key>
-	<dict/>
 </dict>
 </plist>
 EOF
@@ -64,5 +58,5 @@ EOF
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Unsigned-IPA
+          name: unsigned-ipa
           path: ios/build/Output/*.ipa
