@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
 import 'globals.dart';
@@ -9,7 +9,9 @@ class ZegoService {
   ZegoService._internal();
 
   bool _isInitialized = false;
-  Function(String command)? onCommandReceived;
+
+  // 信令回调，传给 UI 层处理
+  Function(Map<String, dynamic>)? onSignalReceived;
 
   Future<void> init() async {
     if (_isInitialized) return;
@@ -20,46 +22,52 @@ class ZegoService {
     );
     await ZegoExpressEngine.createEngineWithProfile(profile);
 
-    ZegoExpressEngine.onRoomExtraInfoUpdate = (String roomID, List<ZegoRoomExtraInfo> infoList) {
-      for (var info in infoList) {
-        if (info.key == "command" && onCommandReceived != null) {
-          onCommandReceived!(info.value);
+    // 修复：onIMRecvBroadcastMessage 是静态回调，直接用类名 ZegoExpressEngine 赋值
+    ZegoExpressEngine.onIMRecvBroadcastMessage = (roomID, messageList) {
+      try {
+        for (final msg in messageList) {
+          final data = jsonDecode(msg.message) as Map<String, dynamic>;
+          if (onSignalReceived != null) onSignalReceived!(data);
         }
+      } catch (e) {
+        debugPrint('信令解析失败: $e');
       }
     };
-    _isInitialized = true;
-  }
 
-  Future<void> initZego() async {
-    await init();
+    _isInitialized = true;
   }
 
   Future<void> loginRoom(String userId) async {
     await init();
-    ZegoUser user = ZegoUser(userId, userId);
+    ZegoUser user = ZegoUser.id(userId);
     ZegoRoomConfig config = ZegoRoomConfig.defaultConfig();
     config.isUserStatusNotify = true;
     await ZegoExpressEngine.instance.loginRoom(Globals.zegoRoomId, user, config: config);
   }
 
-  Future<void> sendCommand(String command) async {
-    await ZegoExpressEngine.instance.setRoomExtraInfo(Globals.zegoRoomId, "command", command);
+  Future<void> sendSignal(Map<String, dynamic> data) async {
+    final message = jsonEncode(data);
+    await ZegoExpressEngine.instance.sendBroadcastMessage(Globals.zegoRoomId, message);
   }
 
-  Future<void> sendControlCommand(String command) async {
-    await sendCommand(command);
+  Future<void> setVoiceChanger(double pitch) async {
+    ZegoVoiceChangerParam param = ZegoVoiceChangerParam(pitch);
+    await ZegoExpressEngine.instance.setVoiceChangerParam(param);
   }
 
-  void setVoicePreset(ZegoVoiceChangerPreset preset) {
-    ZegoExpressEngine.instance.setVoiceChangerPreset(preset);
+  Future<void> setVoicePreset(ZegoVoiceChangerPreset preset) async {
+    await ZegoExpressEngine.instance.setVoiceChangerPreset(preset);
+  }
+
+  Future<void> muteMicrophone(bool mute) async {
+    await ZegoExpressEngine.instance.muteMicrophone(mute);
+  }
+
+  Future<void> setSpeakerVolume(bool enable) async {
+    await ZegoExpressEngine.instance.setAudioRouteToSpeaker(enable);
   }
 
   Future<void> logoutRoom() async {
     await ZegoExpressEngine.instance.logoutRoom(Globals.zegoRoomId);
-  }
-
-  Future<void> destroy() async {
-    await ZegoExpressEngine.destroyEngine();
-    _isInitialized = false;
   }
 }

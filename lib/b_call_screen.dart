@@ -51,8 +51,9 @@ class _BCallScreenState extends State<BCallScreen> {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  void _sendCmd(String cmd) {
-    _zego.sendCommand(cmd);
+  // ========= 修改这里，直接调用引擎发送广播 =========
+  Future<void> _sendCmd(String cmd) async {
+    await ZegoExpressEngine.instance.sendBroadcastMessage("voice_call_room", cmd);
     if(mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已下发指令: $cmd')));
     }

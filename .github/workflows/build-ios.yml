@@ -1,7 +1,6 @@
-name: Build Unsigned IPA Auto
+name: Manual Build Unsigned IPA
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch: # 只在GitHub仓库页面，Actions里面手动点按钮启动
 jobs:
   build:
     runs-on: macos-latest

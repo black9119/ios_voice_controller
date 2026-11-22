@@ -1,118 +1,54 @@
-import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'globals.dart';
-import 'zego_service.dart';
-import 'dialer_screen.dart';
+import 'package:zego_express_engine/zego_express_engine.dart';
 
-class ACallScreen extends StatefulWidget {
-  const ACallScreen({super.key});
-  @override
-  State<ACallScreen> createState() => _ACallScreenState();
-}
+class ZegoService {
+  ZegoExpressEngine? _engine;
+  String? _currentRoomId;
 
-class _ACallScreenState extends State<ACallScreen> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  final ZegoService _zego = ZegoService();
-  Timer? _timer;
-  int _seconds = 0;
-  bool _inCall = false;
+  void Function(String command)? onCommandReceived;
 
-  @override
-  void initState() {
-    super.initState();
-    _initCall();
+  Future<void> initEngine() async {
+    if (_engine != null) return;
+
+    // ========== 这里填你自己的信息 ==========
+    const int appID = 491443522;
+    const String appSign = "f141828e865741eb46cccf86fb4667b5d808e4e02be0f214dcdcfbe622db4204";
+    // =====================================
+
+    final profile = ZegoEngineProfile(
+      appID,
+      ZegoScenario.General,
+      appSign: appSign,
+    );
+    await ZegoExpressEngine.createEngineWithProfile(profile);
+    _engine = ZegoExpressEngine.instance;
+    _registerEvent();
   }
 
-  Future<void> _initCall() async {
-    _zego.onCommandReceived = (command) {
-      if (command == 'busy') {
-        _audioPlayer.play(AssetSource('audio/busy.mp3'));
-      } else if (command == 'empty') {
-        _audioPlayer.play(AssetSource('audio/empty.mp3'));
-      } else if (command == 'stop') {
-        _audioPlayer.stop();
+  void _registerEvent() {
+    ZegoExpressEngine.onIMRecvBroadcastMessage = (roomID, messageList) {
+      for (final msg in messageList) {
+        final cmd = msg.message;
+        if (onCommandReceived != null) {
+          onCommandReceived!(cmd);
+        }
       }
     };
-
-    await _zego.loginRoom('A_User');
-    setState(() { _inCall = true; });
-    
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) setState(() { _seconds++; });
-    });
   }
 
-  String _formatTime(int sec) {
-    int m = sec ~/ 60;
-    int s = sec % 60;
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  Future<void> loginRoom(String userId) async {
+    await initEngine();
+    _currentRoomId = "voice_call_room";
+    await _engine?.loginRoom(_currentRoomId!, ZegoUser(userId, userId));
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _audioPlayer.dispose();
-    _zego.logoutRoom();
-    super.dispose();
+  Future<void> logoutRoom() async {
+    if (_currentRoomId != null) {
+      await _engine?.logoutRoom(_currentRoomId!);
+    }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF1C1C1E),
-      body: SafeArea(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Column(
-              children: [
-                const Text('A 端（被控）', style: TextStyle(color: Colors.white54, fontSize: 16)),
-                const SizedBox(height: 20),
-                const Icon(Icons.person, size: 80, color: Colors.white24),
-                const SizedBox(height: 20),
-                const Text('ZEGO 房间已连接', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w300)),
-                const SizedBox(height: 10),
-                Text(_inCall ? _formatTime(_seconds) : '连接中...', style: const TextStyle(color: Colors.white70, fontSize: 20)),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildActionBtn(Icons.settings_backup_restore, '重置', () async {
-                  await Globals.saveRole('');
-                  if (!context.mounted) return;
-                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const DialerScreen()));
-                }),
-                const SizedBox(width: 40),
-                _buildActionBtn(Icons.call_end, '挂断', () async {
-                  await _zego.logoutRoom();
-                  _audioPlayer.stop();
-                  if (!context.mounted) return;
-                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const DialerScreen()));
-                }, color: Colors.red),
-              ],
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionBtn(IconData icon, String label, VoidCallback onTap, {Color color = const Color(0xFF333333)}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 70, height: 70,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            child: Icon(icon, color: Colors.white, size: 32),
-          ),
-          const SizedBox(height: 10),
-          Text(label, style: const TextStyle(color: Colors.white70)),
-        ],
-      ),
-    );
+  Future<void> sendCommand(String cmd) async {
+    if (_currentRoomId == null) return;
+    await _engine?.sendBroadcastMessage(_currentRoomId!, cmd);
   }
 }

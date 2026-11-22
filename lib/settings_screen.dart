@@ -50,7 +50,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先选择角色')));
       return;
     }
-    Navigator.push(context, MaterialPageRoute(builder: (c) => const CallScreen()));
+    // 修复：传入dialedNumber，使用填写的IP作为通话号码
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (c) => CallScreen(dialedNumber: _ipController.text),
+      ),
+    );
   }
 
   @override
