@@ -1,12 +1,14 @@
 platform :ios, '16.0'
 
-# 这一行是flutter原生模板自带，自动加载podhelper，不要手动写路径
-require File.join(File.dirname(`which flutter`.chomp), '..', '..', 'packages', 'flutter_tools', 'bin', 'podhelper')
+flutter_root = ENV['FLUTTER_ROOT']
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 
 flutter_ios_podfile_setup
 
 target 'Runner' do
   use_frameworks!
+  use_modular_headers!
+
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
