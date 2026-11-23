@@ -18,12 +18,12 @@ class CallScreen extends StatefulWidget {
 class _CallScreenState extends State<CallScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final ZegoService _zego = ZegoService();
-  
+
   Timer? _timer;
   int _seconds = 0;
-  
+
   // 状态机: 'calling' 呼出中, 'ringing' 收到邀请, 'in_call' 通话中, 'ended' 已结束
-  String _callStatus = 'calling'; 
+  String _callStatus = 'calling';
   bool _isMuted = false;
   bool _isSpeakerOn = false;
   bool _showKeypad = false;
@@ -31,7 +31,6 @@ class _CallScreenState extends State<CallScreen> {
   String _selectedVoice = '中年男';
   int _selectedEffect = 0;
 
-  // ========== 修复：Dart SDK驼峰枚举，删除全大写下划线写法 ==========
   final Map<String, ZegoVoiceChangerPreset> voiceMap = {
     '老年男人': ZegoVoiceChangerPreset.OptimusPrime,
     '老年女人': ZegoVoiceChangerPreset.Ethereal,
@@ -49,23 +48,31 @@ class _CallScreenState extends State<CallScreen> {
 
   Future<void> _initCallLogic() async {
     await _zego.loginRoom(Globals.currentRole == 'A' ? 'A_User' : 'B_User');
-    
+
     _zego.onSignalReceived = (data) {
       if (data['type'] == 'invite') {
         // B 端收到 A 端的呼叫邀请
         if (Globals.currentRole == 'B') {
-          setState(() { _callStatus = 'ringing'; });
+          setState(() {
+            _callStatus = 'ringing';
+          });
         }
       } else if (data['type'] == 'accept') {
         // A 端收到 B 端的接听
         if (Globals.currentRole == 'A') {
-          setState(() { _callStatus = 'in_call'; _startTimer(); });
+          setState(() {
+            _callStatus = 'in_call';
+            _startTimer();
+          });
           _sendSignalRaw({'type': 'start_timer'});
         }
       } else if (data['type'] == 'start_timer') {
         // B 端收到开始计时
-         if (Globals.currentRole == 'B') {
-          setState(() { _callStatus = 'in_call'; _startTimer(); });
+        if (Globals.currentRole == 'B') {
+          setState(() {
+            _callStatus = 'in_call';
+            _startTimer();
+          });
         }
       } else if (data['type'] == 'hangup') {
         _handleRemoteHangup();
@@ -80,10 +87,9 @@ class _CallScreenState extends State<CallScreen> {
     }
   }
 
-  // 替换原来 _zego.sendSignal，直接发广播消息（不再依赖zego_service的sendSignal）
   Future<void> _sendSignalRaw(Map<String, dynamic> data) async {
     String msg = jsonEncode(data);
-    await ZegoExpressEngine.instance.sendBroadcastMessage("voice_call_room", msg);
+    await ZegoExpressEngine.instance.sendBroadcastMessage(Globals.zegoRoomId, msg);
   }
 
   void _handleRemoteCommand(String action) {
@@ -100,7 +106,9 @@ class _CallScreenState extends State<CallScreen> {
     _timer?.cancel();
     _seconds = 0;
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) setState(() { _seconds++; });
+      if (mounted) setState(() {
+        _seconds++;
+      });
     });
   }
 
@@ -111,11 +119,11 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   Future<void> _saveCallRecord() async {
-    if (_seconds == 0) return; // 没接通不记
+    if (_seconds == 0) return;
     final prefs = await SharedPreferences.getInstance();
     String? historyJson = prefs.getString('call_history');
     List<dynamic> history = historyJson != null ? jsonDecode(historyJson) : [];
-    
+
     history.insert(0, {
       'number': widget.dialedNumber,
       'time': DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now()),
@@ -134,9 +142,9 @@ class _CallScreenState extends State<CallScreen> {
     _audioPlayer.stop();
     _zego.logoutRoom();
     _saveCallRecord();
-    
+
     if (Globals.currentRole == 'A') {
-      _audioPlayer.play(AssetSource('audio/busy.mp3')); // A端挂断后播放3秒忙音
+      _audioPlayer.play(AssetSource('audio/busy.mp3'));
       Future.delayed(const Duration(seconds: 3), () {
         if (mounted) Navigator.pop(context);
       });
@@ -155,7 +163,7 @@ class _CallScreenState extends State<CallScreen> {
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color bg = const Color(0xFF1C1C1E); // 模拟 iOS 通话深色背景
+    Color bg = const Color(0xFF1C1C1E);
 
     return Scaffold(
       backgroundColor: bg,
@@ -165,7 +173,6 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  // A端呼出/通话 & B端通话中 UI
   Widget _buildCallingUI() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -180,33 +187,41 @@ class _CallScreenState extends State<CallScreen> {
             Text(widget.dialedNumber, style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w300)),
           ],
         ),
-        
+
         if (Globals.currentRole == 'B' && _callStatus == 'in_call') _buildVoicePanel(),
 
         if (!_showKeypad)
           Wrap(
-            spacing: 20, runSpacing: 20,
+            spacing: 20,
+            runSpacing: 20,
             children: [
               _buildActionBtn(Icons.volume_up, _isSpeakerOn ? '免提开' : '免提', () {
-                setState(() { _isSpeakerOn = !_isSpeakerOn; });
-                // 直接调用引擎，不依赖zego_service方法
+                setState(() {
+                  _isSpeakerOn = !_isSpeakerOn;
+                });
                 ZegoExpressEngine.instance.setAudioRouteToSpeaker(_isSpeakerOn);
               }),
               _buildActionBtn(Icons.mic_off, _isMuted ? '取消静音' : '静音', () {
-                setState(() { _isMuted = !_isMuted; });
+                setState(() {
+                  _isMuted = !_isMuted;
+                });
                 ZegoExpressEngine.instance.muteMicrophone(_isMuted);
               }),
-              _buildActionBtn(Icons.dialpad, '拨号键盘', () { setState(() { _showKeypad = true; }); }),
+              _buildActionBtn(Icons.dialpad, '拨号键盘', () {
+                setState(() {
+                  _showKeypad = true;
+                });
+              }),
             ],
           )
         else
           _buildNumberPad(),
 
-        // 挂断按钮
         GestureDetector(
           onTap: _hangUp,
           child: Container(
-            width: 75, height: 75,
+            width: 75,
+            height: 75,
             decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
             child: const Icon(Icons.call_end, color: Colors.white, size: 32),
           ),
@@ -216,34 +231,35 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  // B端来电接听 UI
   Widget _buildBIncomingUI() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         const Text('收到语音邀请', style: TextStyle(color: Colors.white70, fontSize: 20)),
         Text(widget.dialedNumber, style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w300)),
-        
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            // 拒绝
             GestureDetector(
               onTap: _hangUp,
               child: Container(
-                width: 75, height: 75,
+                width: 75,
+                height: 75,
                 decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                 child: const Icon(Icons.call_end, color: Colors.white, size: 32),
               ),
             ),
-            // 接听
             GestureDetector(
               onTap: () {
                 _sendSignalRaw({'type': 'accept'});
-                setState(() { _callStatus = 'in_call'; _startTimer(); });
+                setState(() {
+                  _callStatus = 'in_call';
+                  _startTimer();
+                });
               },
               child: Container(
-                width: 75, height: 75,
+                width: 75,
+                height: 75,
                 decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
                 child: const Icon(Icons.call, color: Colors.white, size: 32),
               ),
@@ -254,7 +270,6 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  // B 端专属变声与指令面板
   Widget _buildVoicePanel() {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -265,23 +280,24 @@ class _CallScreenState extends State<CallScreen> {
           const Text('变声与指令面板', style: TextStyle(color: Colors.white, fontSize: 16)),
           const SizedBox(height: 10),
           Wrap(
-            spacing: 8, runSpacing: 8,
+            spacing: 8,
+            runSpacing: 8,
             children: ['老年男人', '老年女人', '中年男', '中年女', '小孩男', '小孩女'].map((v) {
               bool selected = _selectedVoice == v;
               return ChoiceChip(
                 label: Text(v, style: TextStyle(color: selected ? Colors.black : Colors.white)),
                 selected: selected,
                 onSelected: (val) {
-                  setState(() { _selectedVoice = v; });
+                  setState(() {
+                    _selectedVoice = v;
+                  });
                   final preset = voiceMap[v]!;
-                  // 直接调用引擎变声接口，不再依赖 zego_service.setVoicePreset
                   ZegoExpressEngine.instance.setVoiceChangerPreset(preset);
                 },
               );
             }).toList(),
           ),
           const Divider(color: Colors.white24),
-          // 指令
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -290,16 +306,16 @@ class _CallScreenState extends State<CallScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          // 微调保存
           Wrap(
             spacing: 8,
             children: List.generate(4, (i) {
               return ActionChip(
-                label: Text('效果${i+1}', style: const TextStyle(color: Colors.white)),
+                label: Text('效果${i + 1}', style: const TextStyle(color: Colors.white)),
                 onPressed: () async {
-                  setState(() { _selectedEffect = i; });
+                  setState(() {
+                    _selectedEffect = i;
+                  });
                   double savedPitch = await Globals.loadEffect(i);
-                  // ✅ 修复：构造时直接传入 pitch
                   ZegoVoiceChangerParam param = ZegoVoiceChangerParam(savedPitch);
                   ZegoExpressEngine.instance.setVoiceChangerParam(param);
                 },
@@ -308,9 +324,10 @@ class _CallScreenState extends State<CallScreen> {
           ),
           TextButton.icon(
             onPressed: () async {
-              // 假装当前有一个微调值 1.5
               await Globals.saveEffect(_selectedEffect, 1.5);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('微调已保存')));
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('微调已保存')));
+              }
             },
             icon: const Icon(Icons.save, color: Colors.blue),
             label: const Text('保存当前微调', style: TextStyle(color: Colors.blue)),
@@ -334,7 +351,8 @@ class _CallScreenState extends State<CallScreen> {
       child: Column(
         children: [
           Container(
-            width: 70, height: 70,
+            width: 70,
+            height: 70,
             decoration: const BoxDecoration(color: Color(0xFF333333), shape: BoxShape.circle),
             child: Icon(icon, color: Colors.white, size: 32),
           ),
@@ -345,11 +363,15 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  // 简易通话键盘
   Widget _buildNumberPad() {
     return Column(
       children: [
-        for (var row in [['1','2','3'], ['4','5','6'], ['7','8','9'], ['*','0','#']])
+        for (var row in [
+          ['1', '2', '3'],
+          ['4', '5', '6'],
+          ['7', '8', '9'],
+          ['*', '0', '#']
+        ])
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: row.map((k) => TextButton(
@@ -358,7 +380,9 @@ class _CallScreenState extends State<CallScreen> {
             )).toList(),
           ),
         TextButton(
-          onPressed: () => setState(() { _showKeypad = false; }),
+          onPressed: () => setState(() {
+            _showKeypad = false;
+          }),
           child: const Text('隐藏拨号键盘', style: TextStyle(color: Colors.white70)),
         )
       ],
