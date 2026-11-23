@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '电话',
+      title: 'Dialer',
       theme: ThemeData.light().copyWith(scaffoldBackgroundColor: Colors.white),
       darkTheme: ThemeData.dark().copyWith(scaffoldBackgroundColor: Colors.black),
       themeMode: ThemeMode.system,
