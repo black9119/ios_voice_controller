@@ -1,12 +1,11 @@
 platform :ios, '16.0'
 
-ENV['COCOAPODS_DISABLE_STATIC'] = 'true'
-
-use_frameworks!
+# 加载flutter的podhelper脚本（关键！）
+load File.join(File.dirname(__FILE__), '.symlinks', 'plugins', 'podhelper.rb')
 
 target 'Runner' do
   use_frameworks!
-  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  install_all_flutter_pods(File.dirname(File.realpath(__FILE__)))
 end
 
 post_install do |installer|
