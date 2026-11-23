@@ -1,15 +1,18 @@
 platform :ios, '16.0'
 
-# 加载flutter的podhelper脚本（关键！）
-load File.join(File.dirname(__FILE__), '.symlinks', 'plugins', 'podhelper.rb')
+# 这一行是flutter原生模板自带，自动加载podhelper，不要手动写路径
+require File.join(File.dirname(`which flutter`.chomp), '..', '..', 'packages', 'flutter_tools', 'bin', 'podhelper')
+
+flutter_ios_podfile_setup
 
 target 'Runner' do
   use_frameworks!
-  install_all_flutter_pods(File.dirname(File.realpath(__FILE__)))
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
