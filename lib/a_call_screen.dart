@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
 import 'globals.dart';
 import 'dialer_screen.dart';
 import 'zego_service.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ACallScreen extends StatefulWidget {
   const ACallScreen({super.key});
@@ -15,7 +18,7 @@ class ACallScreen extends StatefulWidget {
 class _ACallScreenState extends State<ACallScreen> {
   final ZegoService _zego = ZegoService();
   final AudioPlayer _audioPlayer = AudioPlayer();
-  
+
   bool _isConnected = false;
   bool _isMuted = false;
   bool _isSpeaker = false;
@@ -29,6 +32,20 @@ class _ACallScreenState extends State<ACallScreen> {
     _initCall();
   }
 
+  Future<void> _saveCallRecord(String number, int sec, bool isMissed) async {
+    final prefs = await SharedPreferences.getInstance();
+    String? historyJson = prefs.getString('call_history');
+    List<dynamic> history = historyJson != null ? jsonDecode(historyJson) : [];
+
+    history.insert(0, {
+      'number': number,
+      'time': DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now()),
+      'duration': _formatTime(sec),
+      'isMissed': isMissed,
+    });
+    await prefs.setString('call_history', jsonEncode(history));
+  }
+
   Future<void> _initCall() async {
     await _zego.loginRoom('A_User');
     _zego.onCommandReceived = (command) {
@@ -36,9 +53,14 @@ class _ACallScreenState extends State<ACallScreen> {
       else if (command == 'empty') _audioPlayer.play(AssetSource('audio/empty.mp3'));
       else if (command == 'stop') _audioPlayer.stop();
     };
-    // 这里模拟 B 端接通，实际中应该由 ZEGO 的房间用户状态回调控制
-    setState(() { _isConnected = true; });
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) { if (mounted) setState(() { _seconds++; }); });
+    setState(() {
+      _isConnected = true;
+    });
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (mounted) setState(() {
+        _seconds++;
+      });
+    });
   }
 
   String _formatTime(int sec) {
@@ -62,17 +84,13 @@ class _ACallScreenState extends State<ACallScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // 顶部
             const SizedBox(height: 20),
             const Icon(Icons.person, size: 80, color: Colors.white24),
             const SizedBox(height: 10),
-            Text(_isConnected ? _formatTime(_seconds) : '正在呼叫...', style: const TextStyle(color: Colors.white, fontSize: 20)),
+            Text(_isConnected ? _formatTime(_seconds) : '正在呼叫...',
+                style: const TextStyle(color: Colors.white, fontSize: 20)),
             const Spacer(),
-            
-            // 如果显示键盘
             if (_showKeypad) _buildKeypad(),
-            
-            // 底部按钮
             _buildBottomControls(),
             const SizedBox(height: 30),
           ],
@@ -86,10 +104,10 @@ class _ACallScreenState extends State<ACallScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _row(['1','2','3']),
-          _row(['4','5','6']),
-          _row(['7','8','9']),
-          _row(['*','0','#']),
+          _row(['1', '2', '3']),
+          _row(['4', '5', '6']),
+          _row(['7', '8', '9']),
+          _row(['*', '0', '#']),
         ],
       ),
     );
@@ -98,14 +116,17 @@ class _ACallScreenState extends State<ACallScreen> {
   Widget _row(List<String> keys) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: keys.map((k) => GestureDetector(
-        onTap: () {},
-        child: Container(
-          width: 70, height: 70,
-          decoration: const BoxDecoration(color: Color(0xFF333333), shape: BoxShape.circle),
-          child: Center(child: Text(k, style: const TextStyle(fontSize: 30, color: Colors.white))),
-        ),
-      )).toList(),
+      children: keys
+          .map((k) => GestureDetector(
+                onTap: () {},
+                child: Container(
+                  width: 70,
+                  height: 70,
+                  decoration: const BoxDecoration(color: Color(0xFF333333), shape: BoxShape.circle),
+                  child: Center(child: Text(k, style: const TextStyle(fontSize: 30, color: Colors.white))),
+                ),
+              ))
+          .toList(),
     );
   }
 
@@ -119,7 +140,8 @@ class _ACallScreenState extends State<ACallScreen> {
             children: [
               _actionBtn(Icons.volume_up, _isSpeaker ? '免提中' : '免提', () async {
                 setState(() => _isSpeaker = !_isSpeaker);
-                await ZegoExpressEngine.instance.enableSpeaker(_isSpeaker);
+                // 修复：enableSpeaker 改为 setAudioRouteToSpeaker
+                await ZegoExpressEngine.instance.setAudioRouteToSpeaker(_isSpeaker);
               }),
               _actionBtn(Icons.mic_off, _isMuted ? '静音中' : '静音', () async {
                 setState(() => _isMuted = !_isMuted);
@@ -130,14 +152,15 @@ class _ACallScreenState extends State<ACallScreen> {
           const SizedBox(height: 20),
           GestureDetector(
             onTap: () async {
-              // 挂断：未接通状态，记录0秒且未接
-              await Globals.saveCallRecord('未知', _seconds, _seconds == 0);
+              // 替换 Globals.saveCallRecord 为本地方法
+              await _saveCallRecord('未知', _seconds, _seconds == 0);
               _zego.logoutRoom();
               if (!context.mounted) return;
               Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const DialerScreen()));
             },
             child: Container(
-              width: 70, height: 70,
+              width: 70,
+              height: 70,
               decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
               child: const Icon(Icons.call_end, color: Colors.white, size: 32),
             ),
@@ -158,7 +181,8 @@ class _ACallScreenState extends State<ACallScreen> {
       child: Column(
         children: [
           Container(
-            width: 70, height: 70,
+            width: 70,
+            height: 70,
             decoration: const BoxDecoration(color: Color(0xFF333333), shape: BoxShape.circle),
             child: Icon(icon, color: Colors.white, size: 30),
           ),

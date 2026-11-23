@@ -2,9 +2,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class Globals {
   static String currentRole = "A";
-  static String zegoAppId = "";
-  static String zegoAppSign = "";
-  static String zegoRoomId = "";
+  // appId 改为 int
+  static int zegoAppId = 491443522;
+  static String zegoAppSign = "f141828e865741eb46cccf86fb4667b5d808e4e02be0f214dcdcfbe622db4204";
+  static String zegoRoomId = "call_room_001";
 
   // 加载角色 A/B
   static Future<void> loadRole() async {

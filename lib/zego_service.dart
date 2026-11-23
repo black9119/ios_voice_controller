@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:zego_express_engine/zego_express_engine.dart';
 import 'globals.dart';
 
@@ -7,6 +8,8 @@ class ZegoService {
   ZegoService._internal();
 
   bool _isInitialized = false;
+
+  Function(Map<String, dynamic> data)? onSignalReceived;
   Function(String command)? onCommandReceived;
 
   Future<void> init() async {
@@ -18,7 +21,6 @@ class ZegoService {
     );
     await ZegoExpressEngine.createEngineWithProfile(profile);
 
-    // 修复：onRoomExtraInfoUpdate 是静态回调，使用类名 ZegoExpressEngine 直接赋值，不要用 instance
     ZegoExpressEngine.onRoomExtraInfoUpdate = (roomID, infoList) {
       for (var info in infoList) {
         if (info.key == "command" && onCommandReceived != null) {
@@ -27,18 +29,30 @@ class ZegoService {
       }
     };
 
+    ZegoExpressEngine.onIMRecvBroadcastMessage = (roomID, messageList) {
+      for (final msgInfo in messageList) {
+        try {
+          final Map<String, dynamic> data = jsonDecode(msgInfo.message);
+          if (onSignalReceived != null) {
+            onSignalReceived!(data);
+          }
+        } catch (_) {}
+      }
+    };
+
     _isInitialized = true;
   }
 
   Future<void> loginRoom(String userId) async {
     await init();
-    ZegoUser user = ZegoUser.id(userId);
+    // 修复：ZegoUser 需要 userID, userName 两个参数
+    ZegoUser user = ZegoUser(userId, userId);
     ZegoRoomConfig config = ZegoRoomConfig.defaultConfig();
     await ZegoExpressEngine.instance.loginRoom(Globals.zegoRoomId, user, config: config);
   }
 
-  Future<void> sendCommand(String command) async {
-    await ZegoExpressEngine.instance.setRoomExtraInfo(Globals.zegoRoomId, "command", command);
+  Future<void> sendCommand(String cmd) async {
+    await ZegoExpressEngine.instance.setRoomExtraInfo(Globals.zegoRoomId, "command", cmd);
   }
 
   Future<void> logoutRoom() async {

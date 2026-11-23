@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 import 'globals.dart';
 import 'dialer_screen.dart';
 import 'zego_service.dart';
@@ -31,7 +33,6 @@ class _BCallScreenState extends State<BCallScreen> {
 
   Future<void> _initB() async {
     await _zego.loginRoom('B_User');
-    // 监听 A 端是否发来呼叫（此处假设 ZEGO 房间状态）
   }
 
   void _acceptCall() async {
@@ -39,8 +40,22 @@ class _BCallScreenState extends State<BCallScreen> {
     _timer = Timer.periodic(const Duration(seconds: 1), (t) { if (mounted) setState(() { _seconds++; }); });
   }
 
+  Future<void> _saveCallRecord(String number, int sec) async {
+    if (sec == 0) return;
+    final prefs = await SharedPreferences.getInstance();
+    String? historyJson = prefs.getString('call_history');
+    List<dynamic> history = historyJson != null ? jsonDecode(historyJson) : [];
+
+    history.insert(0, {
+      'number': number,
+      'time': DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now()),
+      'duration': _formatTime(sec),
+    });
+    await prefs.setString('call_history', jsonEncode(history));
+  }
+
   void _hangup() async {
-    await Globals.saveCallRecord('未知号码', _seconds, false);
+    await _saveCallRecord('未知号码', _seconds);
     _zego.logoutRoom();
     if (!mounted) return;
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const DialerScreen()));
