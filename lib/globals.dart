@@ -22,6 +22,12 @@ class Globals {
     await prefs.setString('role', role);
   }
 
+  // 加载角色（main.dart用到）
+  static Future<void> loadRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    currentRole = prefs.getString('role') ?? 'A';
+  }
+
   // 通话记录相关，改成Future，支持await
   static Future<void> saveCallRecord(String number, int seconds, bool isOut) async {
     // 占位，兼容编译
