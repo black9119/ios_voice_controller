@@ -15,7 +15,8 @@ class ACallScreen extends StatefulWidget {
 class _ACallScreenState extends State<ACallScreen> {
   final ZegoService _zego = ZegoService();
   final AudioPlayer _audioPlayer = AudioPlayer();
-
+  
+  bool _isConnected = false;
   bool _isMuted = false;
   bool _isSpeaker = false;
   bool _showKeypad = false;
@@ -31,21 +32,14 @@ class _ACallScreenState extends State<ACallScreen> {
   Future<void> _initCall() async {
     await _zego.loginRoom('A_User');
     _zego.onCommandReceived = (command) {
-      if (command == 'busy') {
-        _audioPlayer.play(AssetSource('audio/busy.mp3'));
-      } else if (command == 'empty') {
-        _audioPlayer.play(AssetSource('audio/empty.mp3'));
-      } else if (command == 'stop') {
-        _audioPlayer.stop();
-      }
+      if (command == 'busy') _audioPlayer.play(AssetSource('audio/busy.mp3'));
+      else if (command == 'empty') _audioPlayer.play(AssetSource('audio/empty.mp3'));
+      else if (command == 'stop') _audioPlayer.stop();
     };
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (mounted) {
-        setState(() {
-          _seconds++;
-        });
-      }
-    });
+    
+    // 模拟接听，实际业务中需监听 B 端接听状态
+    setState(() { _isConnected = true; });
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) { if (mounted) setState(() { _seconds++; }); });
   }
 
   String _formatTime(int sec) {
@@ -70,12 +64,18 @@ class _ACallScreenState extends State<ACallScreen> {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            Text(_formatTime(_seconds), style: const TextStyle(color: Colors.white, fontSize: 20)),
+            if (_showKeypad) const SizedBox() else
+              const Icon(Icons.person, size: 80, color: Colors.white24),
             const SizedBox(height: 10),
-            const Text('10086', style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w300)),
+            Text(_isConnected ? _formatTime(_seconds) : '正在呼叫...', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w300)),
+            if (_isConnected && !_showKeypad)
+              const Text('10086', style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w300)),
+            
             const Spacer(),
+            
             if (_showKeypad) _buildKeypad(),
-            if (!_showKeypad) _buildControls(),
+            
+            _buildBottomControls(),
             const SizedBox(height: 30),
           ],
         ),
@@ -88,10 +88,10 @@ class _ACallScreenState extends State<ACallScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _row(['1', '2', '3']),
-          _row(['4', '5', '6']),
-          _row(['7', '8', '9']),
-          _row(['*', '0', '#']),
+          _row(['1','2','3']),
+          _row(['4','5','6']),
+          _row(['7','8','9']),
+          _row(['*','0','#']),
         ],
       ),
     );
@@ -103,8 +103,7 @@ class _ACallScreenState extends State<ACallScreen> {
       children: keys.map((k) => GestureDetector(
         onTap: () {},
         child: Container(
-          width: 70,
-          height: 70,
+          width: 70, height: 70,
           decoration: const BoxDecoration(color: Color(0xFF333333), shape: BoxShape.circle),
           child: Center(child: Text(k, style: const TextStyle(fontSize: 30, color: Colors.white))),
         ),
@@ -112,7 +111,7 @@ class _ACallScreenState extends State<ACallScreen> {
     );
   }
 
-  Widget _buildControls() {
+  Widget _buildBottomControls() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40),
       child: Column(
@@ -122,7 +121,7 @@ class _ACallScreenState extends State<ACallScreen> {
             children: [
               _actionBtn(Icons.volume_up, _isSpeaker ? '免提中' : '免提', () async {
                 setState(() => _isSpeaker = !_isSpeaker);
-                await ZegoExpressEngine.instance.setAudioRouteToSpeaker(_isSpeaker);
+                await ZegoExpressEngine.instance.enableSpeaker(_isSpeaker);
               }),
               _actionBtn(Icons.mic_off, _isMuted ? '静音中' : '静音', () async {
                 setState(() => _isMuted = !_isMuted);
@@ -133,14 +132,13 @@ class _ACallScreenState extends State<ACallScreen> {
           const SizedBox(height: 20),
           GestureDetector(
             onTap: () async {
-              await Globals.saveCallRecord('10086', _seconds, _seconds == 0);
-              await _zego.logoutRoom();
-              if (!mounted) return;
+              await Globals.saveCallRecord('10086', _seconds, false);
+              _zego.logoutRoom();
+              if (!context.mounted) return;
               Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const DialerScreen()));
             },
             child: Container(
-              width: 70,
-              height: 70,
+              width: 70, height: 70,
               decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
               child: const Icon(Icons.call_end, color: Colors.white, size: 32),
             ),
@@ -161,8 +159,7 @@ class _ACallScreenState extends State<ACallScreen> {
       child: Column(
         children: [
           Container(
-            width: 70,
-            height: 70,
+            width: 70, height: 70,
             decoration: const BoxDecoration(color: Color(0xFF333333), shape: BoxShape.circle),
             child: Icon(icon, color: Colors.white, size: 30),
           ),

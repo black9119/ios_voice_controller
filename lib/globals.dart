@@ -1,61 +1,29 @@
-// lib/globals.dart
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Globals {
-  // 角色 A / B
-  static String currentRole = 'A';
-  // Zego 房间ID
-  static String zegoRoomId = 'room1';
+  static const int zegoAppId = 000000000; 
+  static const String zegoAppSign = "your_app_sign_here";
+  static const String zegoRoomId = "123456";
 
-  // Zego 配置
-  static int zegoAppId = 0;
-  static String zegoAppSign = '';
-  static String token = '';
+  static String currentRole = '';
 
-  // 自定义服务IP
-  static String serverIp = '127.0.0.1';
-
-  // 保存角色（dialer_screen用到）
-  static Future<void> saveRole(String role) async {
-    final prefs = await SharedPreferences.getInstance();
-    currentRole = role;
-    await prefs.setString('role', role);
-  }
-
-  // 加载角色（main.dart用到）
   static Future<void> loadRole() async {
     final prefs = await SharedPreferences.getInstance();
-    currentRole = prefs.getString('role') ?? 'A';
+    currentRole = prefs.getString('device_role') ?? '';
   }
 
-  // 通话记录相关，改成Future，支持await
-  static Future<void> saveCallRecord(String number, int seconds, bool isOut) async {
-    // 占位，兼容编译
-  }
-
-  // 变声音调保存读取
-  static Future<double> loadEffect(int index) async {
+  static Future<void> saveRole(String role) async {
     final prefs = await SharedPreferences.getInstance();
-    double pitch = prefs.getDouble('pitch_$index') ?? 1.0;
-    return pitch;
+    await prefs.setString('device_role', role);
+    currentRole = role;
   }
 
-  static Future<void> saveEffect(int index, double pitch) async {
+  static Future<void> saveCallRecord(String number, int duration, bool isMissed) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('pitch_$index', pitch);
-  }
-
-  // 从本地缓存加载配置
-  static Future<void> loadConfig() async {
-    final prefs = await SharedPreferences.getInstance();
-    serverIp = prefs.getString('server_ip') ?? '127.0.0.1';
-    currentRole = prefs.getString('role') ?? 'A';
-  }
-
-  // 保存配置到本地
-  static Future<void> saveConfig() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('server_ip', serverIp);
-    await prefs.setString('role', currentRole);
+    List<String> records = prefs.getStringList('call_records') ?? [];
+    // 格式: 号码|时间戳|时长(秒)|是否未接(1/0)
+    String record = "$number|${DateTime.now().millisecondsSinceEpoch}|$duration|${isMissed ? 1 : 0}";
+    records.insert(0, record);
+    await prefs.setStringList('call_records', records);
   }
 }
