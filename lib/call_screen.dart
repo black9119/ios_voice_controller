@@ -106,9 +106,11 @@ class _CallScreenState extends State<CallScreen> {
     _timer?.cancel();
     _seconds = 0;
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) setState(() {
-        _seconds++;
-      });
+      if (mounted) {
+        setState(() {
+          _seconds++;
+        });
+      }
     });
   }
 
@@ -119,7 +121,9 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   Future<void> _saveCallRecord() async {
-    if (_seconds == 0) return;
+    if (_seconds == 0) {
+      return;
+    }
     final prefs = await SharedPreferences.getInstance();
     String? historyJson = prefs.getString('call_history');
     List<dynamic> history = historyJson != null ? jsonDecode(historyJson) : [];
@@ -146,10 +150,14 @@ class _CallScreenState extends State<CallScreen> {
     if (Globals.currentRole == 'A') {
       _audioPlayer.play(AssetSource('audio/busy.mp3'));
       Future.delayed(const Duration(seconds: 3), () {
-        if (mounted) Navigator.pop(context);
+        if (mounted) {
+          Navigator.pop(context);
+        }
       });
     } else {
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -162,7 +170,7 @@ class _CallScreenState extends State<CallScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    // 删除未使用变量 isDark
     Color bg = const Color(0xFF1C1C1E);
 
     return Scaffold(
@@ -195,17 +203,17 @@ class _CallScreenState extends State<CallScreen> {
             spacing: 20,
             runSpacing: 20,
             children: [
-              _buildActionBtn(Icons.volume_up, _isSpeakerOn ? '免提开' : '免提', () {
+              _buildActionBtn(Icons.volume_up, _isSpeakerOn ? '免提开' : '免提', () async {
                 setState(() {
                   _isSpeakerOn = !_isSpeakerOn;
                 });
-                ZegoExpressEngine.instance.setAudioRouteToSpeaker(_isSpeakerOn);
+                await ZegoExpressEngine.instance.setAudioRouteToSpeaker(_isSpeakerOn);
               }),
-              _buildActionBtn(Icons.mic_off, _isMuted ? '取消静音' : '静音', () {
+              _buildActionBtn(Icons.mic_off, _isMuted ? '取消静音' : '静音', () async {
                 setState(() {
                   _isMuted = !_isMuted;
                 });
-                ZegoExpressEngine.instance.muteMicrophone(_isMuted);
+                await ZegoExpressEngine.instance.muteMicrophone(_isMuted);
               }),
               _buildActionBtn(Icons.dialpad, '拨号键盘', () {
                 setState(() {
@@ -317,7 +325,7 @@ class _CallScreenState extends State<CallScreen> {
                   });
                   double savedPitch = await Globals.loadEffect(i);
                   ZegoVoiceChangerParam param = ZegoVoiceChangerParam(savedPitch);
-                  ZegoExpressEngine.instance.setVoiceChangerParam(param);
+                  await ZegoExpressEngine.instance.setVoiceChangerParam(param);
                 },
               );
             }),
@@ -380,9 +388,11 @@ class _CallScreenState extends State<CallScreen> {
             )).toList(),
           ),
         TextButton(
-          onPressed: () => setState(() {
-            _showKeypad = false;
-          }),
+          onPressed: () {
+            setState(() {
+              _showKeypad = false;
+            });
+          },
           child: const Text('隐藏拨号键盘', style: TextStyle(color: Colors.white70)),
         )
       ],

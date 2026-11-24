@@ -122,7 +122,7 @@ class _ACallScreenState extends State<ACallScreen> {
             children: [
               _actionBtn(Icons.volume_up, _isSpeaker ? '免提中' : '免提', () async {
                 setState(() => _isSpeaker = !_isSpeaker);
-                await ZegoExpressEngine.instance.setAudioOutputToSpeaker(_isSpeaker);
+                await ZegoExpressEngine.instance.setAudioRouteToSpeaker(_isSpeaker);
               }),
               _actionBtn(Icons.mic_off, _isMuted ? '静音中' : '静音', () async {
                 setState(() => _isMuted = !_isMuted);
