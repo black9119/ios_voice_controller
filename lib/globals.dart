@@ -1,8 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Globals {
-  static const int zegoAppId = 000000000; 
-  static const String zegoAppSign = "your_app_sign_here";
+  static const int zegoAppId = 491443522; 
+  static const String zegoAppSign = "f141828e865741eb46cccf86fb4667b5d808e4e02be0f214dcdcfbe622db4204";
   static const String zegoRoomId = "123456";
 
   static String currentRole = '';
