@@ -1,8 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart';
 import 'globals.dart';
 import 'dialer_screen.dart';
 import 'zego_service.dart';
@@ -20,7 +17,6 @@ class _BCallScreenState extends State<BCallScreen> {
   Timer? _timer;
   int _selectedVoice = 0;
   int _selectedEffect = 0;
-  bool _isAnswered = false;
 
   final voiceNames = ['老年男人', '老年女人', '中年男', '中年女', '小孩男', '小孩女'];
   final effectNames = ['效果1', '效果2', '效果3', '效果4'];
@@ -35,30 +31,23 @@ class _BCallScreenState extends State<BCallScreen> {
     await _zego.loginRoom('B_User');
   }
 
-  void _acceptCall() async {
-    setState(() { _isAnswered = true; _isConnected = true; });
+  void _acceptCall() {
+    setState(() { _isConnected = true; });
     _timer = Timer.periodic(const Duration(seconds: 1), (t) { if (mounted) setState(() { _seconds++; }); });
   }
 
-  Future<void> _saveCallRecord(String number, int sec) async {
-    if (sec == 0) return;
-    final prefs = await SharedPreferences.getInstance();
-    String? historyJson = prefs.getString('call_history');
-    List<dynamic> history = historyJson != null ? jsonDecode(historyJson) : [];
-
-    history.insert(0, {
-      'number': number,
-      'time': DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now()),
-      'duration': _formatTime(sec),
-    });
-    await prefs.setString('call_history', jsonEncode(history));
-  }
-
   void _hangup() async {
-    await _saveCallRecord('未知号码', _seconds);
+    await Globals.saveCallRecord('13800138000', _seconds, false);
     _zego.logoutRoom();
     if (!mounted) return;
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const DialerScreen()));
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _zego.logoutRoom();
+    super.dispose();
   }
 
   @override
@@ -71,13 +60,12 @@ class _BCallScreenState extends State<BCallScreen> {
             const SizedBox(height: 30),
             const Text('B 端（控制）', style: TextStyle(color: Colors.white54, fontSize: 16)),
             const SizedBox(height: 20),
-            Text('13800138000', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w300)),
+            const Text('13800138000', style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w300)),
             const SizedBox(height: 10),
             Text(_isConnected ? _formatTime(_seconds) : '等待接听...', style: const TextStyle(color: Colors.white70, fontSize: 20)),
             
             const Spacer(),
             
-            // 变声面板
             Container(
               padding: const EdgeInsets.all(16),
               margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -120,7 +108,6 @@ class _BCallScreenState extends State<BCallScreen> {
 
             const Spacer(),
 
-            // 指令按钮
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -130,23 +117,20 @@ class _BCallScreenState extends State<BCallScreen> {
             ),
             const SizedBox(height: 20),
             
-            // 挂断/接听
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // 绿色接听按钮
                 GestureDetector(
-                  onTap: _isAnswered ? null : _acceptCall,
+                  onTap: _isConnected ? null : _acceptCall,
                   child: Container(
                     width: 70, height: 70,
                     decoration: BoxDecoration(
-                      color: _isAnswered ? Colors.grey : const Color(0xFF34C759),
+                      color: _isConnected ? Colors.grey : const Color(0xFF34C759),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.call, color: Colors.white, size: 30),
                   ),
                 ),
-                // 红色挂断按钮
                 GestureDetector(
                   onTap: _hangup,
                   child: Container(
@@ -179,12 +163,5 @@ class _BCallScreenState extends State<BCallScreen> {
     int m = sec ~/ 60;
     int s = sec % 60;
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _zego.logoutRoom();
-    super.dispose();
   }
 }

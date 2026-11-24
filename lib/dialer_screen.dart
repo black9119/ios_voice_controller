@@ -12,7 +12,7 @@ class DialerScreen extends StatefulWidget {
 
 class _DialerScreenState extends State<DialerScreen> {
   String _input = '';
-  final TextEditingController _searchController = TextEditingController();
+  int _currentIndex = 3; // 默认选中拨号键盘
 
   void _onPress(String num) {
     setState(() { _input += num; });
@@ -31,7 +31,7 @@ class _DialerScreenState extends State<DialerScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: const Text('设为 A 端（被叫）'),
+              title: const Text('设为 A 端（被控端）'),
               onTap: () async {
                 await Globals.saveRole('A');
                 if (!context.mounted) return;
@@ -39,7 +39,7 @@ class _DialerScreenState extends State<DialerScreen> {
               },
             ),
             ListTile(
-              title: const Text('设为 B 端（主叫）'),
+              title: const Text('设为 B 端（控制端）'),
               onTap: () async {
                 await Globals.saveRole('B');
                 if (!context.mounted) return;
@@ -55,52 +55,47 @@ class _DialerScreenState extends State<DialerScreen> {
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color bg = isDark ? Colors.black : Colors.white;
-    Color text = isDark ? Colors.white : Colors.black;
+    Color bgColor = isDark ? Colors.black : Colors.white;
+    Color textColor = isDark ? Colors.white : Colors.black;
     Color keyBg = isDark ? const Color(0xFF333333) : const Color(0xFFE5E5EA);
+    Color navBg = isDark ? Colors.black : Colors.white;
 
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: bgColor,
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
               flex: 1,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(_input.isEmpty ? " " : _input, style: TextStyle(fontSize: 40, color: text, fontWeight: FontWeight.w300)),
-                    const SizedBox(height: 10),
-                    if (_input.isNotEmpty)
-                      Text('正在呼叫...', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
-                  ],
+              child: Container(
+                alignment: Alignment.center,
+                child: Text(
+                  _input, 
+                  style: TextStyle(fontSize: 36, color: textColor, fontWeight: FontWeight.w300, letterSpacing: 1.5),
                 ),
               ),
             ),
             Expanded(
               flex: 3,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                padding: const EdgeInsets.symmetric(horizontal: 30.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _row(['1','2','3'], keyBg, text),
-                    _row(['4','5','6'], keyBg, text),
-                    _row(['7','8','9'], keyBg, text),
-                    _row(['*','0','#'], keyBg, text),
+                    _buildDialRow(['1', '2', '3'], ['', 'ABC', 'DEF'], keyBg, textColor),
+                    _buildDialRow(['4', '5', '6'], ['GHI', 'JKL', 'MNO'], keyBg, textColor),
+                    _buildDialRow(['7', '8', '9'], ['PQRS', 'TUV', 'WXYZ'], keyBg, textColor),
+                    _buildDialRow(['*', '0', '#'], ['', '+', ''], keyBg, textColor),
                   ],
                 ),
               ),
             ),
             Container(
               height: 80,
-              padding: const EdgeInsets.symmetric(horizontal: 60),
+              padding: const EdgeInsets.symmetric(horizontal: 50),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(width: 70),
                   GestureDetector(
                     onTap: () {
                       if (_input.isNotEmpty) {
@@ -113,62 +108,73 @@ class _DialerScreenState extends State<DialerScreen> {
                       child: const Icon(Icons.call, color: Colors.white, size: 32),
                     ),
                   ),
-                  const SizedBox(width: 70),
                 ],
               ),
             ),
-            // 底部导航 (图3要求保留的4个按钮)
-            _buildBottomNavBar(isDark),
+            _buildBottomNavBar(navBg, isDark),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBottomNavBar(bool isDark) {
+  Widget _buildDialRow(List<String> numbers, List<String> letters, Color bg, Color textColor) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: List.generate(3, (index) {
+        return GestureDetector(
+          onTap: () => _onPress(numbers[index]),
+          child: Container(
+            width: 75, height: 75,
+            decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(numbers[index], style: TextStyle(fontSize: 32, color: textColor, fontWeight: FontWeight.w400)),
+                if (letters[index].isNotEmpty)
+                  Text(letters[index], style: TextStyle(fontSize: 9, color: textColor, fontWeight: FontWeight.w500, letterSpacing: 1.2)),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildBottomNavBar(Color bg, bool isDark) {
     return Container(
-      height: 60,
+      height: 70,
       decoration: BoxDecoration(
+        color: bg,
         border: Border(top: BorderSide(color: isDark ? Colors.white12 : Colors.black12, width: 0.5)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _navItem(Icons.star_border, '个人收藏', () {}),
-          _navItem(Icons.access_time, '最近通话', () { Navigator.push(context, MaterialPageRoute(builder: (c) => const RecordsScreen())); }),
-          _navItem(Icons.person_outline, '通讯录', () {}),
-          _navItem(Icons.dialpad, '拨号键盘', () {}),
-          _navItem(Icons.voicemail, '语音信箱', () {}),
+          _navItem(Icons.star_border, Icons.star, '个人收藏', 0),
+          _navItem(Icons.access_time, Icons.access_time_filled, '最近通话', 1, onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (c) => const RecordsScreen()));
+          }),
+          _navItem(Icons.person_outline, Icons.person, '通讯录', 2),
+          _navItem(Icons.dialpad, Icons.dialpad, '拨号键盘', 3),
+          _navItem(Icons.voicemail, Icons.voicemail, '语音留言', 4),
         ],
       ),
     );
   }
 
-  Widget _navItem(IconData icon, String label, VoidCallback onTap) {
+  Widget _navItem(IconData icon, IconData activeIcon, String label, int index, {VoidCallback? onTap}) {
+    bool isActive = _currentIndex == index;
     return GestureDetector(
-      onTap: onTap,
+      onTap: onTap ?? () => setState(() => _currentIndex = index),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: Colors.grey, size: 24),
+          Icon(isActive ? activeIcon : icon, color: isActive ? const Color(0xFF0A84FF) : Colors.grey, size: 26),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+          Text(label, style: TextStyle(fontSize: 10, color: isActive ? const Color(0xFF0A84FF) : Colors.grey)),
         ],
       ),
-    );
-  }
-
-  Widget _row(List<String> keys, Color bg, Color text) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: keys.map((k) => GestureDetector(
-        onTap: () => _onPress(k),
-        child: Container(
-          width: 75, height: 75,
-          decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-          child: Center(child: Text(k, style: TextStyle(fontSize: 32, color: text, fontWeight: FontWeight.w300))),
-        ),
-      )).toList(),
     );
   }
 }
