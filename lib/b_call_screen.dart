@@ -32,13 +32,21 @@ class _BCallScreenState extends State<BCallScreen> {
   }
 
   void _acceptCall() {
-    setState(() { _isConnected = true; });
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) { if (mounted) setState(() { _seconds++; }); });
+    setState(() {
+      _isConnected = true;
+    });
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (mounted) {
+        setState(() {
+          _seconds++;
+        });
+      }
+    });
   }
 
   void _hangup() async {
     await Globals.saveCallRecord('13800138000', _seconds, false);
-    _zego.logoutRoom();
+    await _zego.logoutRoom();
     if (!mounted) return;
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const DialerScreen()));
   }
@@ -63,9 +71,9 @@ class _BCallScreenState extends State<BCallScreen> {
             const Text('13800138000', style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w300)),
             const SizedBox(height: 10),
             Text(_isConnected ? _formatTime(_seconds) : '等待接听...', style: const TextStyle(color: Colors.white70, fontSize: 20)),
-            
+
             const Spacer(),
-            
+
             Container(
               padding: const EdgeInsets.all(16),
               margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -75,23 +83,33 @@ class _BCallScreenState extends State<BCallScreen> {
                   const Text('变声与指令面板', style: TextStyle(color: Colors.white, fontSize: 16)),
                   const SizedBox(height: 12),
                   Wrap(
-                    spacing: 8, runSpacing: 8,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: List.generate(voiceNames.length, (index) {
                       return ChoiceChip(
                         label: Text(voiceNames[index], style: const TextStyle(color: Colors.white, fontSize: 12)),
                         selected: _selectedVoice == index,
-                        onSelected: (val) => setState(() => _selectedVoice = index),
+                        onSelected: (val) {
+                          setState(() {
+                            _selectedVoice = index;
+                          });
+                        },
                       );
                     }),
                   ),
                   const Divider(color: Colors.white24, height: 20),
                   Wrap(
-                    spacing: 8, runSpacing: 8,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: List.generate(effectNames.length, (index) {
                       return ChoiceChip(
                         label: Text(effectNames[index], style: const TextStyle(color: Colors.white, fontSize: 12)),
                         selected: _selectedEffect == index,
-                        onSelected: (val) => setState(() => _selectedEffect = index),
+                        onSelected: (val) {
+                          setState(() {
+                            _selectedEffect = index;
+                          });
+                        },
                       );
                     }),
                   ),
@@ -116,14 +134,15 @@ class _BCallScreenState extends State<BCallScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 GestureDetector(
                   onTap: _isConnected ? null : _acceptCall,
                   child: Container(
-                    width: 70, height: 70,
+                    width: 70,
+                    height: 70,
                     decoration: BoxDecoration(
                       color: _isConnected ? Colors.grey : const Color(0xFF34C759),
                       shape: BoxShape.circle,
@@ -134,7 +153,8 @@ class _BCallScreenState extends State<BCallScreen> {
                 GestureDetector(
                   onTap: _hangup,
                   child: Container(
-                    width: 70, height: 70,
+                    width: 70,
+                    height: 70,
                     decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                     child: const Icon(Icons.call_end, color: Colors.white, size: 30),
                   ),
