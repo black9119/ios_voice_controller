@@ -1,18 +1,31 @@
-name: Manual Build Unsigned IPA iOS18
+name: Manual Build Unsigned IPA iOS12
+
 on:
   workflow_dispatch:
+
 jobs:
   build:
-    runs-on: macos-latest
+    # 固定 macOS 14 + Xcode 15.4：Flutter 3.19.6 的官方支持组合
+    runs-on: macos-14
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+
+      - name: Setup Xcode 15.4
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.4'
 
       - name: Setup Flutter 3.19.6
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.19.6'
           channel: stable
+          cache: true
+
+      # Podfile 依赖这个变量定位 podhelper，显式导出，别靠隐式注入
+      - name: Export FLUTTER_ROOT
+        run: echo "FLUTTER_ROOT=$(dirname $(dirname $(which flutter)))" >> $GITHUB_ENV
 
       - name: Flutter clean
         run: flutter clean
@@ -36,30 +49,32 @@ jobs:
             -workspace Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
+            -destination 'generic/platform=iOS' \
             -archivePath build/Runner.xcarchive \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            ENABLE_USER_SCRIPT_SANDBOXING=NO
 
       - name: Build unsigned IPA
         run: |
           cd ios
-          rm -rf Payload
-          mkdir -p Payload
           APP_PATH="build/Runner.xcarchive/Products/Applications/Runner.app"
-          if [ -d "$APP_PATH" ];then
-            echo "✅ 找到Runner.app，开始打包IPA"
+          if [ -d "$APP_PATH" ]; then
+            echo "✅ 找到 Runner.app"
+            rm -rf Payload
+            mkdir -p Payload
             cp -R "$APP_PATH" Payload/
             zip -q -r Runner.ipa Payload
             mv Runner.ipa build/
             ls -la build/
           else
-            echo "❌ 找不到Runner.app，archive失败"
+            echo "❌ 找不到 Runner.app，archive 失败"
             exit 1
           fi
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Runner-unsigned-ipa-ios18
+          name: Runner-unsigned-ipa-ios12
           path: ios/build/Runner.ipa
