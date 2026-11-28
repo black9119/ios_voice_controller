@@ -42,6 +42,10 @@ jobs:
           rm -rf Pods Podfile.lock
           pod install --repo-update
 
+      # 先生成 ios/Flutter/Generated.xcconfig 并提前暴露 Dart 编译错误
+      - name: Flutter build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
+
       - name: Xcode archive (no sign)
         run: |
           cd ios

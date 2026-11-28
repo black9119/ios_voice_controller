@@ -31,6 +31,27 @@ class ZegoService {
     );
     await ZegoExpressEngine.createEngineWithProfile(profile);
     _initialized = true;
+
+    // 静态回调：必须通过类名赋值，且要在引擎创建之后注册
+    ZegoExpressEngine.onRoomExtraInfoUpdate = _onRoomExtraInfoUpdate;
+  }
+
+  /// 房间附加信息变更（静态回调，只会注册一次）
+  static void _onRoomExtraInfoUpdate(
+    String roomID,
+    List<ZegoRoomExtraInfo> infoList,
+  ) {
+    for (final ZegoRoomExtraInfo info in infoList) {
+      if (info.key != _signalKey) continue;
+      final Map<String, dynamic>? data = _instance._decode(info.value);
+      if (data == null) continue;
+      // 忽略自己发的信令
+      if ((data['from'] ?? '').toString() == _instance._userId) continue;
+      if (data['type'] == 'command') {
+        _instance.onCommandReceived?.call((data['action'] ?? '').toString());
+      }
+      _instance.onSignalReceived?.call(data);
+    }
   }
 
   Future<void> loginRoom(String userId) async {
@@ -43,20 +64,6 @@ class ZegoService {
       user,
       config: config,
     );
-
-    ZegoExpressEngine.instance.onRoomExtraInfoUpdate = (roomID, infoList) {
-      for (final info in infoList) {
-        if (info.key != _signalKey) continue;
-        final Map<String, dynamic>? data = _decode(info.value);
-        if (data == null) continue;
-        // 忽略自己发的信令
-        if ((data['from'] ?? '').toString() == _userId) continue;
-        if (data['type'] == 'command') {
-          onCommandReceived?.call((data['action'] ?? '').toString());
-        }
-        onSignalReceived?.call(data);
-      }
-    };
   }
 
   Future<void> send(Map<String, dynamic> data) async {

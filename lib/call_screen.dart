@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart';
 import 'globals.dart';
 import 'zego_service.dart';
 
@@ -120,6 +119,12 @@ class _CallScreenState extends State<CallScreen> {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
+  /// 替代 intl 的 DateFormat('yyyy-MM-dd HH:mm')，无需引入 intl 依赖
+  String _formatDateTime(DateTime dt) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${dt.year}-${two(dt.month)}-${two(dt.day)} ${two(dt.hour)}:${two(dt.minute)}';
+  }
+
   Future<void> _saveCallRecord() async {
     if (_seconds == 0) {
       return;
@@ -130,7 +135,7 @@ class _CallScreenState extends State<CallScreen> {
 
     history.insert(0, {
       'number': widget.dialedNumber,
-      'time': DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now()),
+      'time': _formatDateTime(DateTime.now()),
       'duration': _formatTime(_seconds),
     });
     await prefs.setString('call_history', jsonEncode(history));
