@@ -5,16 +5,16 @@ on:
 
 jobs:
   build:
-    # 固定 macOS 14 + Xcode 15.4：Flutter 3.19.6 的官方支持组合
-    runs-on: macos-14
+    # macos-14 镜像已被 GitHub 下线，改用 macos-15（arm64，自带 Xcode 16.x）
+    runs-on: macos-15
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Setup Xcode 15.4
+      - name: Setup Xcode 16.2
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '15.4'
+          xcode-version: '16.2'
 
       - name: Setup Flutter 3.19.6
         uses: subosito/flutter-action@v2
